@@ -35,11 +35,20 @@ type GameTargetState = {
   location: [number, number];
 };
 
+type MoveAction = {
+  color: (typeof COLORS)[number];
+  from: [number, number];
+  to: [number, number];
+};
+
 type GameState = {
   board: Array<Array<GameCellState>>;
   pieces: { [key in (typeof COLORS)[number]]: GamePieceState };
   target: GameTargetState;
   activeColor: (typeof COLORS)[number] | null;
+
+  moves: Array<MoveAction>;
+  bestSolution: Array<MoveAction> | null;
 };
 
 type PixiState = {
@@ -210,6 +219,8 @@ const makeGameBoardState = () => {
     pieces: pieces as any,
     target: getLegalTarget(board),
     activeColor: null,
+    moves: [],
+    bestSolution: null,
   };
 
   return state;
@@ -273,6 +284,21 @@ const updateHighlightedCells = (gameState: GameState, pixiState: PixiState) => {
     ];
   targetCell.tint = COLOR_HEX[gameState.target.color];
   targetCell.alpha = 0.5;
+};
+
+const executeMove = (
+  gameState: GameState,
+  pixiState: PixiState,
+  move: MoveAction
+) => {
+  const piece = gameState.pieces[move.color];
+  pixiState.pieces[move.color].x = (move.to[1] + 1) * CELL_SIZE - CELL_SIZE / 2;
+  pixiState.pieces[move.color].y = (move.to[0] + 1) * CELL_SIZE - CELL_SIZE / 2;
+  piece.location = [move.to[0], move.to[1]];
+  gameState.board[move.from[0]][move.from[1]].piece = null;
+  gameState.board[move.to[0]][move.to[1]].piece = piece;
+
+  updateHighlightedCells(gameState, pixiState);
 };
 
 (async () => {
@@ -467,16 +493,76 @@ const updateHighlightedCells = (gameState: GameState, pixiState: PixiState) => {
         col + dc[dir] * travelDist,
       ];
 
-      pixiState.pieces[gameState.activeColor].x =
-        (newCol + 1) * CELL_SIZE - CELL_SIZE / 2;
-      pixiState.pieces[gameState.activeColor].y =
-        (newRow + 1) * CELL_SIZE - CELL_SIZE / 2;
-      piece.location = [newRow, newCol];
-      gameState.board[row][col].piece = null;
-      gameState.board[newRow][newCol].piece = piece;
+      const moveAction: MoveAction = {
+        color: gameState.activeColor,
+        from: [row, col],
+        to: [newRow, newCol],
+      };
+      executeMove(gameState, pixiState, moveAction);
+      gameState.moves.push(moveAction);
 
-      updateHighlightedCells(gameState, pixiState);
+      if (
+        gameState.target.location[0] === newRow &&
+        gameState.target.location[1] === newCol &&
+        gameState.target.color === gameState.activeColor
+      ) {
+        if (
+          gameState.bestSolution === null ||
+          gameState.bestSolution.length > gameState.moves.length
+        ) {
+          gameState.bestSolution = gameState.moves.slice();
+          document.getElementById("bestSolution")!.innerText =
+            "Best solution: " + gameState.bestSolution.length + " moves";
+        }
+        gameState.activeColor = null;
+        updateHighlightedCells(gameState, pixiState);
+      }
+
+      document.getElementById("moves")!.innerText =
+        "Moves: " + gameState.moves.length;
     }
+  });
+
+  document.getElementById("resetRound")!.addEventListener("click", () => {
+    while (gameState.moves.length > 0) {
+      const move = gameState.moves[gameState.moves.length - 1];
+      executeMove(gameState, pixiState, {
+        color: move.color,
+        from: move.to,
+        to: move.from,
+      });
+      gameState.moves.pop();
+    }
+    gameState.activeColor = null;
+    updateHighlightedCells(gameState, pixiState);
+
+    document.getElementById("moves")!.innerText =
+      "Moves: " + gameState.moves.length;
+  });
+
+  document.getElementById("newRound")!.addEventListener("click", () => {
+    while (gameState.moves.length > 0) {
+      const move = gameState.moves[gameState.moves.length - 1];
+      executeMove(gameState, pixiState, {
+        color: move.color,
+        from: move.to,
+        to: move.from,
+      });
+      gameState.moves.pop();
+    }
+    if (gameState.bestSolution) {
+      for (let move of gameState.bestSolution!) {
+        executeMove(gameState, pixiState, move);
+      }
+    }
+    gameState.bestSolution = [];
+    gameState.activeColor = null;
+    gameState.target = getLegalTarget(gameState.board);
+    updateHighlightedCells(gameState, pixiState);
+
+    document.getElementById("moves")!.innerText =
+      "Moves: " + gameState.moves.length;
+    document.getElementById("bestSolution")!.innerText = "Best solution: none";
   });
 
   app.ticker.add(() => {
