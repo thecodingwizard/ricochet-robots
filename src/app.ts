@@ -55,7 +55,7 @@ const addBorder = (board: Array<Array<GameCellState>>, row, col, dir) => {
 };
 
 const occupied = (cell: GameCellState) => {
-  return cell.piece !== null && cell.piece !== "BLOCKED";
+  return cell.piece !== null || cell.piece === "BLOCKED";
 };
 
 const getFreeCell = (board: Array<Array<GameCellState>>): [number, number] => {
@@ -65,6 +65,38 @@ const getFreeCell = (board: Array<Array<GameCellState>>): [number, number] => {
     if (occupied(board[row][col])) continue;
     return [row, col];
   }
+};
+
+const numBorders = (cell: GameCellState) => {
+  let count = 0;
+  for (let i = 0; i < 4; i++) {
+    if (cell.borders[i]) count++;
+  }
+  return count;
+};
+
+const getLegalTarget = (
+  board: Array<Array<GameCellState>>
+): GameTargetState => {
+  const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+
+  const possibleTargetLocations: Array<[number, number]> = [];
+  for (let row = 0; row < N_CELLS; row++) {
+    for (let col = 0; col < N_CELLS; col++) {
+      if (!occupied(board[row][col]) && numBorders(board[row][col]) === 2) {
+        possibleTargetLocations.push([row, col]);
+        console.log([row, col], board[row][col]);
+      }
+    }
+  }
+
+  return {
+    color,
+    location:
+      possibleTargetLocations[
+        Math.floor(Math.random() * possibleTargetLocations.length)
+      ],
+  };
 };
 
 const makeGameBoardState = () => {
@@ -170,15 +202,10 @@ const makeGameBoardState = () => {
     pieces[color] = piece;
   }
 
-  const target: GameTargetState = {
-    color: COLORS[Math.floor(Math.random() * COLORS.length)],
-    location: getFreeCell(board),
-  };
-
   const state: GameBoardState = {
     board,
     pieces: pieces as any,
-    target,
+    target: getLegalTarget(board),
   };
 
   return state;
@@ -304,8 +331,8 @@ const makeGameBoardState = () => {
     targetSprite.drawRect(0, 0, CELL_SIZE, CELL_SIZE);
     targetSprite.endFill();
     targetSprite.alpha = 0.5;
-    targetSprite.x = (gameBoard.target.location[1] + 1) * CELL_SIZE - CELL_SIZE;
-    targetSprite.y = (gameBoard.target.location[0] + 1) * CELL_SIZE - CELL_SIZE;
+    targetSprite.x = gameBoard.target.location[1] * CELL_SIZE;
+    targetSprite.y = gameBoard.target.location[0] * CELL_SIZE;
     container.addChild(targetSprite);
 
     return container;
