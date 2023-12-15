@@ -436,6 +436,26 @@ const executeMove = (
   const boardTexture = await PIXI.Assets.load(
     new URL("board.jpg", import.meta.url).toString()
   );
+  const verticalBorderTexture = await PIXI.Assets.load(
+    new URL("single_border.png", import.meta.url).toString()
+  );
+  // width of vertical border
+  const SINGLE_BORDER_WIDTH =
+    (CELL_SIZE * verticalBorderTexture.width) / verticalBorderTexture.height;
+  const crop = new PIXI.Rectangle(
+    verticalBorderTexture.frame.x,
+    verticalBorderTexture.frame.y,
+    verticalBorderTexture.frame.width,
+    verticalBorderTexture.frame.height
+  );
+  const trim = crop;
+  let horizontalBorderTexture = new PIXI.Texture(
+    verticalBorderTexture,
+    verticalBorderTexture.frame,
+    crop,
+    trim,
+    6
+  );
 
   document.body.appendChild(app.view);
 
@@ -458,66 +478,84 @@ const executeMove = (
     }
 
     // draw the center piece
-    const centerPiece = new PIXI.Graphics();
-    centerPiece.beginFill(0x9e8d5c);
-    centerPiece.drawRect(0, 0, CELL_SIZE * 2 + 1, CELL_SIZE * 2 + 1);
-    centerPiece.endFill();
-    centerPiece.x = CELL_SIZE * 7 - 1;
-    centerPiece.y = CELL_SIZE * 7 - 1;
-    container.addChild(centerPiece);
+    // const centerPiece = new PIXI.Graphics();
+    // centerPiece.beginFill(0x9e8d5c);
+    // centerPiece.drawRect(0, 0, CELL_SIZE * 2 + 1, CELL_SIZE * 2 + 1);
+    // centerPiece.endFill();
+    // centerPiece.x = CELL_SIZE * 7 - 1;
+    // centerPiece.y = CELL_SIZE * 7 - 1;
+    // container.addChild(centerPiece);
 
     // draw borders
     for (let row = 0; row < N_CELLS; row++) {
       for (let col = 0; col < N_CELLS; col++) {
         for (let dir = 0; dir < 4; dir++) {
           if (gameBoard.board[row][col].borders[dir]) {
-            const border = new PIXI.Graphics();
-            const borderThickness = 2;
-            border.beginFill(0x000000);
-            switch (dir) {
-              case UP:
-                border.drawRect(
-                  0,
-                  0,
-                  CELL_SIZE + borderThickness,
-                  borderThickness
-                );
-                border.x = col * CELL_SIZE;
-                border.y = row * CELL_SIZE;
-                break;
-              case DOWN:
-                border.drawRect(
-                  0,
-                  0,
-                  CELL_SIZE + borderThickness,
-                  borderThickness
-                );
-                border.x = col * CELL_SIZE;
-                border.y = (row + 1) * CELL_SIZE - borderThickness;
-                break;
-              case LEFT:
-                border.drawRect(
-                  0,
-                  0,
-                  borderThickness,
-                  CELL_SIZE + borderThickness
-                );
-                border.x = col * CELL_SIZE;
-                border.y = row * CELL_SIZE;
-                break;
-              case RIGHT:
-                border.drawRect(
-                  0,
-                  0,
-                  borderThickness,
-                  CELL_SIZE + borderThickness
-                );
-                border.x = (col + 1) * CELL_SIZE - borderThickness;
-                border.y = row * CELL_SIZE;
-                break;
+            // const border = new PIXI.Graphics();
+            // const borderThickness = 2;
+            // border.beginFill(0x000000);
+            // switch (dir) {
+            //   case UP:
+            //     border.drawRect(
+            //       0,
+            //       0,
+            //       CELL_SIZE + borderThickness,
+            //       borderThickness
+            //     );
+            //     border.x = col * CELL_SIZE;
+            //     border.y = row * CELL_SIZE;
+            //     break;
+            //   case DOWN:
+            //     border.drawRect(
+            //       0,
+            //       0,
+            //       CELL_SIZE + borderThickness,
+            //       borderThickness
+            //     );
+            //     border.x = col * CELL_SIZE;
+            //     border.y = (row + 1) * CELL_SIZE - borderThickness;
+            //     break;
+            //   case LEFT:
+            //     border.drawRect(
+            //       0,
+            //       0,
+            //       borderThickness,
+            //       CELL_SIZE + borderThickness
+            //     );
+            //     border.x = col * CELL_SIZE;
+            //     border.y = row * CELL_SIZE;
+            //     break;
+            //   case RIGHT:
+            //     border.drawRect(
+            //       0,
+            //       0,
+            //       borderThickness,
+            //       CELL_SIZE + borderThickness
+            //     );
+            //     border.x = (col + 1) * CELL_SIZE - borderThickness;
+            //     border.y = row * CELL_SIZE;
+            //     break;
+            // }
+            // border.endFill();
+            // container.addChild(border);
+
+            if (dir === UP) {
+              const singleBorder = new PIXI.Sprite(horizontalBorderTexture);
+              singleBorder.x = col * CELL_SIZE;
+              singleBorder.y = row * CELL_SIZE - SINGLE_BORDER_WIDTH / 2;
+              singleBorder.width = CELL_SIZE;
+              singleBorder.height = SINGLE_BORDER_WIDTH;
+              singleBorder.anchor.set(0);
+              container.addChild(singleBorder);
+            } else if (dir === RIGHT) {
+              const singleBorder = new PIXI.Sprite(verticalBorderTexture);
+              singleBorder.x = (col + 1) * CELL_SIZE - SINGLE_BORDER_WIDTH / 2;
+              singleBorder.y = row * CELL_SIZE;
+              singleBorder.width = SINGLE_BORDER_WIDTH;
+              singleBorder.height = CELL_SIZE;
+              singleBorder.anchor.set(0);
+              container.addChild(singleBorder);
             }
-            border.endFill();
-            container.addChild(border);
           }
         }
       }
