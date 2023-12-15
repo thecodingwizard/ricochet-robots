@@ -51,10 +51,20 @@ type GameState = {
   bestSolution: Array<MoveAction> | null;
 };
 
+type PixiPieceState = {
+  sprite: PIXI.Graphics;
+  locations: Array<{
+    location: [number, number];
+    animationStartTime: number;
+  }>;
+};
+
 type PixiState = {
   board: PIXI.Container;
   boardCells: Array<Array<PIXI.Graphics>>;
-  pieces: { [key in (typeof COLORS)[number]]: PIXI.Graphics };
+  pieces: {
+    [key in (typeof COLORS)[number]]: PixiPieceState;
+  };
 };
 
 /**
@@ -376,6 +386,13 @@ const updateUI = (gameState: GameState, pixiState: PixiState) => {
     }
   }
 
+  for (let color of COLORS) {
+    if (color === gameState.activeColor) continue;
+    let piece = pixiState.pieces[color];
+    piece.sprite.scale.x = 1;
+    piece.sprite.scale.y = 1;
+  }
+
   if (activePiece) {
     let [row, col] = activePiece.location;
     for (let dir = 0; dir < 4; dir++) {
@@ -416,11 +433,28 @@ const executeMove = (
   move: MoveAction
 ) => {
   const piece = gameState.pieces[move.color];
-  pixiState.pieces[move.color].x = (move.to[1] + 1) * CELL_SIZE - CELL_SIZE / 2;
-  pixiState.pieces[move.color].y = (move.to[0] + 1) * CELL_SIZE - CELL_SIZE / 2;
+  pixiState.pieces[move.color].locations.push({
+    location: move.to,
+    animationStartTime: -1,
+  });
   piece.location = [move.to[0], move.to[1]];
   gameState.board[move.from[0]][move.from[1]].piece = null;
   gameState.board[move.to[0]][move.to[1]].piece = piece;
+};
+
+const clearPendingAnimations = (pixiState: PixiState) => {
+  for (let piece of Object.values(pixiState.pieces)) {
+    piece.locations = [
+      {
+        location: piece.locations[piece.locations.length - 1].location,
+        animationStartTime: -1,
+      },
+    ];
+    piece.sprite.x =
+      (piece.locations[0].location[1] + 1) * CELL_SIZE - CELL_SIZE / 2;
+    piece.sprite.y =
+      (piece.locations[0].location[0] + 1) * CELL_SIZE - CELL_SIZE / 2;
+  }
 };
 
 (async () => {
@@ -576,7 +610,16 @@ const executeMove = (
       pieceSprite.x = (piece.location[1] + 1) * CELL_SIZE - CELL_SIZE / 2;
       pieceSprite.y = (piece.location[0] + 1) * CELL_SIZE - CELL_SIZE / 2;
 
-      pixiPieces[piece.color] = pieceSprite;
+      let pieceState: PixiPieceState = {
+        sprite: pieceSprite,
+        locations: [
+          {
+            location: piece.location,
+            animationStartTime: -1,
+          },
+        ],
+      };
+      pixiPieces[piece.color] = pieceState;
     }
 
     // add placeholders for board cells
@@ -605,26 +648,19 @@ const executeMove = (
 
   const gameState = makeGameBoardState();
   const pixiState = initializePixiState(gameState);
-  console.log(gameState);
   updateUI(gameState, pixiState);
 
   app.stage.addChild(pixiState.board);
 
-  for (let color of Object.keys(pixiState.pieces)) {
-    let piece = pixiState.pieces[color];
-    app.stage.addChild(piece);
-    piece.eventMode = "static";
+  for (let color of COLORS) {
+    let piece = pixiState.pieces[color as (typeof COLORS)[number]];
+    app.stage.addChild(piece.sprite);
+    piece.sprite.eventMode = "static";
 
-    piece.cursor = "pointer";
+    piece.sprite.cursor = "pointer";
 
-    piece.on("pointerdown", () => {
+    piece.sprite.on("pointerdown", () => {
       gameState.activeColor = color as (typeof COLORS)[number];
-      for (let color of Object.keys(pixiState.pieces)) {
-        if (color === gameState.activeColor) continue;
-        let piece = pixiState.pieces[color];
-        piece.scale.x = 1;
-        piece.scale.y = 1;
-      }
       updateUI(gameState, pixiState);
     });
   }
@@ -649,6 +685,7 @@ const executeMove = (
 
       let [row, col] = piece.location;
       const travelDist = getMaxTravelDistance(gameState, [row, col], dir);
+      if (travelDist === 0) return;
       let [newRow, newCol] = [
         row + dr[dir] * travelDist,
         col + dc[dir] * travelDist,
@@ -692,6 +729,7 @@ const executeMove = (
     }
     gameState.activeColor = null;
 
+    clearPendingAnimations(pixiState);
     updateUI(gameState, pixiState);
   });
 
@@ -714,14 +752,49 @@ const executeMove = (
     gameState.activeColor = null;
     gameState.target = getLegalTarget(gameState.board);
 
+    clearPendingAnimations(pixiState);
     updateUI(gameState, pixiState);
   });
 
   app.ticker.add(() => {
     if (gameState.activeColor !== null) {
       let piece = pixiState.pieces[gameState.activeColor];
-      piece.scale.x = 1 + 0.075 * Math.sin(app.ticker.lastTime / 200);
-      piece.scale.y = 1 + 0.075 * Math.sin(app.ticker.lastTime / 200);
+      piece.sprite.scale.x = 1 + 0.075 * Math.sin(app.ticker.lastTime / 200);
+      piece.sprite.scale.y = 1 + 0.075 * Math.sin(app.ticker.lastTime / 200);
+    }
+    for (let piece of Object.values(pixiState.pieces)) {
+      if (piece.locations.length > 1) {
+        if (piece.locations[0].animationStartTime === -1) {
+          piece.locations[0].animationStartTime = app.ticker.lastTime;
+        }
+        let totalAnimationTime = 100;
+
+        let [oldRow, oldCol] = piece.locations[0].location;
+        let [newRow, newCol] = piece.locations[1].location;
+        let oldX = (oldCol + 1) * CELL_SIZE - CELL_SIZE / 2;
+        let oldY = (oldRow + 1) * CELL_SIZE - CELL_SIZE / 2;
+        let newX = (newCol + 1) * CELL_SIZE - CELL_SIZE / 2;
+        let newY = (newRow + 1) * CELL_SIZE - CELL_SIZE / 2;
+
+        let percentage = Math.min(
+          1,
+          (app.ticker.lastTime - piece.locations[0].animationStartTime) /
+            totalAnimationTime
+        );
+        // from https://easings.net/#easeInOutSine
+        let easeInOutPercentage = -(Math.cos(Math.PI * percentage) - 1) / 2;
+        piece.sprite.x = (newX - oldX) * easeInOutPercentage + oldX;
+        piece.sprite.y = (newY - oldY) * easeInOutPercentage + oldY;
+
+        if (
+          app.ticker.lastTime - piece.locations[0].animationStartTime >=
+          totalAnimationTime
+        ) {
+          piece.sprite.x = newX;
+          piece.sprite.y = newY;
+          piece.locations.splice(0, 1);
+        }
+      }
     }
   });
 })();
