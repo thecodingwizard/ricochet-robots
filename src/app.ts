@@ -144,11 +144,8 @@ const makeGameBoardState = () => {
       let col_offset =
         Math.floor(Math.random() * 6) + 1 + (quadrant_col * N_CELLS) / 2;
 
-      board[row_offset - 1][col].borders[DOWN] = true;
-      board[row_offset][col].borders[UP] = true;
-
-      board[row][col_offset - 1].borders[RIGHT] = true;
-      board[row][col_offset].borders[LEFT] = true;
+      addBorder(board, row_offset, col, UP);
+      addBorder(board, row, col_offset, LEFT);
     }
   }
 
@@ -218,6 +215,29 @@ const makeGameBoardState = () => {
   return state;
 };
 
+const getMaxTravelDistance = (
+  gameState: GameState,
+  location: [number, number],
+  dir: number
+) => {
+  const [row, col] = location;
+  for (let steps = 1; steps <= N_CELLS; steps++) {
+    let [newRow, newCol] = [row + dr[dir] * steps, col + dc[dir] * steps];
+
+    if (
+      newRow < 0 ||
+      newRow >= N_CELLS ||
+      newCol < 0 ||
+      newCol >= N_CELLS ||
+      gameState.board[newRow][newCol].borders[(dir + 2) % 4] ||
+      occupied(gameState.board[newRow][newCol])
+    ) {
+      return steps - 1;
+    }
+  }
+  throw new Error("shouldn't happen");
+};
+
 const updateHighlightedCells = (gameState: GameState, pixiState: PixiState) => {
   const activePiece = gameState.activeColor
     ? gameState.pieces[gameState.activeColor]
@@ -232,24 +252,16 @@ const updateHighlightedCells = (gameState: GameState, pixiState: PixiState) => {
   if (activePiece) {
     let [row, col] = activePiece.location;
     for (let dir = 0; dir < 4; dir++) {
-      for (let steps = 0; steps < N_CELLS; steps++) {
+      let maxDist = getMaxTravelDistance(gameState, [row, col], dir);
+      for (let steps = 0; steps <= maxDist; steps++) {
         let [newRow, newCol] = [row + dr[dir] * steps, col + dc[dir] * steps];
 
         pixiState.boardCells[newRow][newCol].tint =
           COLOR_HEX[activePiece.color];
         pixiState.boardCells[newRow][newCol].alpha = 0.2;
 
-        if (
-          gameState.board[newRow][newCol].borders[dir] ||
-          newRow + dr[dir] < 0 ||
-          newRow + dr[dir] >= N_CELLS ||
-          newCol + dc[dir] < 0 ||
-          newCol + dc[dir] >= N_CELLS
-        ) {
-          if (newRow != row || newCol != col) {
-            pixiState.boardCells[newRow][newCol].alpha = 0.4;
-          }
-          break;
+        if (steps == maxDist) {
+          pixiState.boardCells[newRow][newCol].alpha = 0.4;
         }
       }
     }
@@ -429,6 +441,43 @@ const updateHighlightedCells = (gameState: GameState, pixiState: PixiState) => {
       updateHighlightedCells(gameState, pixiState);
     });
   }
+
+  // add keyboard handler for up / down / left / right / WASD
+  const keyMap = {
+    ArrowUp: UP,
+    ArrowRight: RIGHT,
+    ArrowDown: DOWN,
+    ArrowLeft: LEFT,
+    w: UP,
+    d: RIGHT,
+    s: DOWN,
+    a: LEFT,
+  };
+  document.addEventListener("keydown", (e) => {
+    const dir = keyMap[e.key];
+    if (dir === undefined) return;
+
+    if (gameState.activeColor !== null) {
+      let piece = gameState.pieces[gameState.activeColor];
+
+      let [row, col] = piece.location;
+      const travelDist = getMaxTravelDistance(gameState, [row, col], dir);
+      let [newRow, newCol] = [
+        row + dr[dir] * travelDist,
+        col + dc[dir] * travelDist,
+      ];
+
+      pixiState.pieces[gameState.activeColor].x =
+        (newCol + 1) * CELL_SIZE - CELL_SIZE / 2;
+      pixiState.pieces[gameState.activeColor].y =
+        (newRow + 1) * CELL_SIZE - CELL_SIZE / 2;
+      piece.location = [newRow, newCol];
+      gameState.board[row][col].piece = null;
+      gameState.board[newRow][newCol].piece = piece;
+
+      updateHighlightedCells(gameState, pixiState);
+    }
+  });
 
   app.ticker.add(() => {
     if (gameState.activeColor !== null) {
