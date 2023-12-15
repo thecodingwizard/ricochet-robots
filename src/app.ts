@@ -35,10 +35,17 @@ type GameTargetState = {
   location: [number, number];
 };
 
-type GameBoardState = {
+type GameState = {
   board: Array<Array<GameCellState>>;
   pieces: { [key in (typeof COLORS)[number]]: GamePieceState };
   target: GameTargetState;
+  activeColor: (typeof COLORS)[number] | null;
+};
+
+type PixiState = {
+  board: PIXI.Container;
+  boardCells: Array<Array<PIXI.Graphics>>;
+  pieces: { [key in (typeof COLORS)[number]]: PIXI.Graphics };
 };
 
 const addBorder = (board: Array<Array<GameCellState>>, row, col, dir) => {
@@ -85,7 +92,6 @@ const getLegalTarget = (
     for (let col = 0; col < N_CELLS; col++) {
       if (!occupied(board[row][col]) && numBorders(board[row][col]) === 2) {
         possibleTargetLocations.push([row, col]);
-        console.log([row, col], board[row][col]);
       }
     }
   }
@@ -202,13 +208,59 @@ const makeGameBoardState = () => {
     pieces[color] = piece;
   }
 
-  const state: GameBoardState = {
+  const state: GameState = {
     board,
     pieces: pieces as any,
     target: getLegalTarget(board),
+    activeColor: null,
   };
 
   return state;
+};
+
+const updateHighlightedCells = (gameState: GameState, pixiState: PixiState) => {
+  const activePiece = gameState.activeColor
+    ? gameState.pieces[gameState.activeColor]
+    : null;
+
+  for (let row = 0; row < N_CELLS; row++) {
+    for (let col = 0; col < N_CELLS; col++) {
+      pixiState.boardCells[row][col].alpha = 0;
+    }
+  }
+
+  if (activePiece) {
+    let [row, col] = activePiece.location;
+    for (let dir = 0; dir < 4; dir++) {
+      for (let steps = 0; steps < N_CELLS; steps++) {
+        let [newRow, newCol] = [row + dr[dir] * steps, col + dc[dir] * steps];
+
+        pixiState.boardCells[newRow][newCol].tint =
+          COLOR_HEX[activePiece.color];
+        pixiState.boardCells[newRow][newCol].alpha = 0.2;
+
+        if (
+          gameState.board[newRow][newCol].borders[dir] ||
+          newRow + dr[dir] < 0 ||
+          newRow + dr[dir] >= N_CELLS ||
+          newCol + dc[dir] < 0 ||
+          newCol + dc[dir] >= N_CELLS
+        ) {
+          if (newRow != row || newCol != col) {
+            pixiState.boardCells[newRow][newCol].alpha = 0.4;
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  let targetCell =
+    pixiState.boardCells[gameState.target.location[0]][
+      gameState.target.location[1]
+    ];
+  targetCell.tint = COLOR_HEX[gameState.target.color];
+  targetCell.alpha = 0.5;
 };
 
 (async () => {
@@ -227,7 +279,7 @@ const makeGameBoardState = () => {
 
   document.body.appendChild(app.view);
 
-  const makeGameBoardContainer = (gameBoard: GameBoardState) => {
+  const initializePixiState = (gameBoard: GameState): PixiState => {
     const container = new PIXI.Container();
 
     // draw the tiled board
@@ -312,34 +364,77 @@ const makeGameBoardState = () => {
     }
 
     // draw pieces
+    const pixiPieces = {};
     for (let piece of Object.values(gameBoard.pieces)) {
       let pieceSprite = new PIXI.Graphics();
 
       pieceSprite.beginFill(COLOR_HEX[piece.color]);
       pieceSprite.drawCircle(0, 0, PIECE_SIZE / 2);
+      // add a border
+      pieceSprite.lineStyle(3, 0x000000);
+      pieceSprite.drawCircle(0, 0, PIECE_SIZE / 2 + 1);
       pieceSprite.endFill();
 
       pieceSprite.x = (piece.location[1] + 1) * CELL_SIZE - CELL_SIZE / 2;
       pieceSprite.y = (piece.location[0] + 1) * CELL_SIZE - CELL_SIZE / 2;
 
-      container.addChild(pieceSprite);
+      pixiPieces[piece.color] = pieceSprite;
     }
 
-    // draw target
-    let targetSprite = new PIXI.Graphics();
-    targetSprite.beginFill(COLOR_HEX[gameBoard.target.color]);
-    targetSprite.drawRect(0, 0, CELL_SIZE, CELL_SIZE);
-    targetSprite.endFill();
-    targetSprite.alpha = 0.5;
-    targetSprite.x = gameBoard.target.location[1] * CELL_SIZE;
-    targetSprite.y = gameBoard.target.location[0] * CELL_SIZE;
-    container.addChild(targetSprite);
+    // add placeholders for board cells
+    const boardCells: Array<Array<PIXI.Graphics>> = [];
+    for (let row = 0; row < N_CELLS; row++) {
+      boardCells.push([]);
+      for (let col = 0; col < N_CELLS; col++) {
+        const boardCell = new PIXI.Graphics();
+        boardCell.beginFill(0xffffff);
+        boardCell.drawRect(0, 0, CELL_SIZE, CELL_SIZE);
+        boardCell.endFill();
+        boardCell.x = col * CELL_SIZE;
+        boardCell.y = row * CELL_SIZE;
+        boardCell.alpha = 0;
+        boardCells[row].push(boardCell);
+        container.addChild(boardCell);
+      }
+    }
 
-    return container;
+    return {
+      board: container,
+      pieces: pixiPieces as any,
+      boardCells: boardCells,
+    };
   };
 
-  const gameBoardState = makeGameBoardState();
-  const gameBoardContainer = makeGameBoardContainer(gameBoardState);
+  const gameState = makeGameBoardState();
+  const pixiState = initializePixiState(gameState);
+  updateHighlightedCells(gameState, pixiState);
 
-  app.stage.addChild(gameBoardContainer);
+  app.stage.addChild(pixiState.board);
+
+  for (let color of Object.keys(pixiState.pieces)) {
+    let piece = pixiState.pieces[color];
+    app.stage.addChild(piece);
+    piece.eventMode = "static";
+
+    piece.cursor = "pointer";
+
+    piece.on("pointerdown", () => {
+      gameState.activeColor = color as (typeof COLORS)[number];
+      for (let color of Object.keys(pixiState.pieces)) {
+        if (color === gameState.activeColor) continue;
+        let piece = pixiState.pieces[color];
+        piece.scale.x = 1;
+        piece.scale.y = 1;
+      }
+      updateHighlightedCells(gameState, pixiState);
+    });
+  }
+
+  app.ticker.add(() => {
+    if (gameState.activeColor !== null) {
+      let piece = pixiState.pieces[gameState.activeColor];
+      piece.scale.x = 1 + 0.075 * Math.sin(app.ticker.lastTime / 200);
+      piece.scale.y = 1 + 0.075 * Math.sin(app.ticker.lastTime / 200);
+    }
+  });
 })();
