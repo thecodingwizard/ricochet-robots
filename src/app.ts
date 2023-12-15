@@ -57,6 +57,79 @@ type PixiState = {
   pieces: { [key in (typeof COLORS)[number]]: PIXI.Graphics };
 };
 
+/**
+ * Premade boards from the original board game.
+ * Assume the upper right is the corner that connects to the center piece.
+ * row 0, column 0 is the upper left.
+ */
+type PremadeBoard = {
+  borders: Array<[number, number, number]>; // [row, col, dir]
+};
+
+// taken from ricochet-robots.vercel.app
+const PREMADE_BOARDS: PremadeBoard[] = [
+  // quadrant 0
+  {
+    borders: [
+      [3, 0, DOWN],
+      [1, 1, DOWN],
+      [1, 1, RIGHT],
+      [2, 4, LEFT],
+      [2, 4, DOWN],
+      [5, 5, UP],
+      [5, 5, RIGHT],
+      [6, 3, LEFT],
+      [6, 3, UP],
+      [7, 6, RIGHT],
+    ],
+  },
+  // quadrant 1
+  {
+    borders: [
+      [6, 0, UP],
+      [3, 1, DOWN],
+      [3, 1, LEFT],
+      [6, 2, LEFT],
+      [6, 2, UP],
+      [1, 3, UP],
+      [1, 3, RIGHT],
+      [7, 5, RIGHT],
+      [4, 6, RIGHT],
+      [4, 6, DOWN],
+    ],
+  },
+  // quadrant 2
+  {
+    borders: [
+      [7, 4, LEFT],
+      [6, 2, RIGHT],
+      [6, 2, DOWN],
+      [5, 6, LEFT],
+      [5, 6, UP],
+      [4, 0, UP],
+      [2, 1, UP],
+      [2, 1, RIGHT],
+      [1, 4, DOWN],
+      [1, 4, LEFT],
+    ],
+  },
+  // quadrant 3
+  {
+    borders: [
+      [0, 5, RIGHT],
+      [0, 5, DOWN],
+      [6, 6, DOWN],
+      [6, 6, LEFT],
+      [7, 5, LEFT],
+      [5, 4, UP],
+      [5, 4, LEFT],
+      [2, 2, UP],
+      [2, 2, RIGHT],
+      [3, 0, DOWN],
+    ],
+  },
+];
+
 const addBorder = (board: Array<Array<GameCellState>>, row, col, dir) => {
   board[row][col].borders[dir] = true;
   if (dir === UP && row > 0) {
@@ -104,6 +177,10 @@ const getLegalTarget = (
       }
     }
   }
+  if (possibleTargetLocations.length === 0) {
+    console.error("no legal target locations", board);
+    throw new Error("no legal target locations");
+  }
 
   return {
     color,
@@ -114,33 +191,13 @@ const getLegalTarget = (
   };
 };
 
-const makeGameBoardState = () => {
-  const board: Array<Array<GameCellState>> = [];
-
-  for (let row = 0; row < N_CELLS; row++) {
-    board[row] = [];
-    for (let col = 0; col < N_CELLS; col++) {
-      board[row][col] = {
-        borders: [false, false, false, false],
-        piece: null,
-      };
-    }
-  }
-
-  // borders along the middle 2x2 of the board
-  addBorder(board, 7, 7, UP);
-  addBorder(board, 7, 7, LEFT);
-  addBorder(board, 7, 8, UP);
-  addBorder(board, 7, 8, RIGHT);
-  addBorder(board, 8, 7, LEFT);
-  addBorder(board, 8, 7, DOWN);
-  addBorder(board, 8, 8, RIGHT);
-  addBorder(board, 8, 8, DOWN);
-  board[7][7].piece = "BLOCKED";
-  board[7][8].piece = "BLOCKED";
-  board[8][7].piece = "BLOCKED";
-  board[8][8].piece = "BLOCKED";
-
+/**
+ * Mutates the given board and adds random borders to it.
+ * Relies on the center 4 squares being marked as blocked already.
+ * Note that this has a tendency to generate really hard games
+ * @param board the board to add random borders to
+ */
+const addRandomBorders = (board: Array<Array<GameCellState>>) => {
   // for each 8x8 quadrant, add 2 random borders along the edges
   // one in each axis
   for (let quadrant_row = 0; quadrant_row < 2; quadrant_row++) {
@@ -202,6 +259,65 @@ const makeGameBoardState = () => {
       }
     }
   }
+};
+
+/**
+ * Mutates the given board and adds premade borders to it, based
+ * off the boards in the original game
+ * @param board the board to add borders to
+ */
+const addPremadeBorders = (board: Array<Array<GameCellState>>) => {
+  // quadrant starts on bottom left, goes clockwise
+  // boards are meant for quadrant 0. need to rotate boards for other quadrants
+  for (let quadrant = 0; quadrant < 4; quadrant++) {
+    let premadeBoard = PREMADE_BOARDS[quadrant];
+
+    for (let border of premadeBoard.borders) {
+      let [row, col, dir] = border;
+      for (let numRotations = 0; numRotations < quadrant; numRotations++) {
+        [row, col] = [col, N_CELLS / 2 - 1 - row];
+        dir = (dir + 1) % 4;
+      }
+      if (quadrant === 0 || quadrant === 3) {
+        row += N_CELLS / 2;
+      }
+      if (quadrant === 2 || quadrant === 3) {
+        col += N_CELLS / 2;
+      }
+
+      addBorder(board, row, col, dir);
+    }
+  }
+};
+
+const makeGameBoardState = () => {
+  const board: Array<Array<GameCellState>> = [];
+
+  for (let row = 0; row < N_CELLS; row++) {
+    board[row] = [];
+    for (let col = 0; col < N_CELLS; col++) {
+      board[row][col] = {
+        borders: [false, false, false, false],
+        piece: null,
+      };
+    }
+  }
+
+  // borders along the middle 2x2 of the board
+  addBorder(board, 7, 7, UP);
+  addBorder(board, 7, 7, LEFT);
+  addBorder(board, 7, 8, UP);
+  addBorder(board, 7, 8, RIGHT);
+  addBorder(board, 8, 7, LEFT);
+  addBorder(board, 8, 7, DOWN);
+  addBorder(board, 8, 8, RIGHT);
+  addBorder(board, 8, 8, DOWN);
+  board[7][7].piece = "BLOCKED";
+  board[7][8].piece = "BLOCKED";
+  board[8][7].piece = "BLOCKED";
+  board[8][8].piece = "BLOCKED";
+
+  addPremadeBorders(board);
 
   const pieces = {};
   for (let color of COLORS) {
@@ -451,6 +567,7 @@ const executeMove = (
 
   const gameState = makeGameBoardState();
   const pixiState = initializePixiState(gameState);
+  console.log(gameState);
   updateUI(gameState, pixiState);
 
   app.stage.addChild(pixiState.board);
