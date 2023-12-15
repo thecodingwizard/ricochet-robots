@@ -249,7 +249,7 @@ const getMaxTravelDistance = (
   throw new Error("shouldn't happen");
 };
 
-const updateHighlightedCells = (gameState: GameState, pixiState: PixiState) => {
+const updateUI = (gameState: GameState, pixiState: PixiState) => {
   const activePiece = gameState.activeColor
     ? gameState.pieces[gameState.activeColor]
     : null;
@@ -284,6 +284,14 @@ const updateHighlightedCells = (gameState: GameState, pixiState: PixiState) => {
     ];
   targetCell.tint = COLOR_HEX[gameState.target.color];
   targetCell.alpha = 0.5;
+
+  document.getElementById("moves")!.innerText =
+    "Moves: " + gameState.moves.length;
+  if (gameState.bestSolution)
+    document.getElementById("bestSolution")!.innerText =
+      "Best solution: " + gameState.bestSolution.length + " moves";
+  else
+    document.getElementById("bestSolution")!.innerText = "Best solution: none";
 };
 
 const executeMove = (
@@ -297,8 +305,6 @@ const executeMove = (
   piece.location = [move.to[0], move.to[1]];
   gameState.board[move.from[0]][move.from[1]].piece = null;
   gameState.board[move.to[0]][move.to[1]].piece = piece;
-
-  updateHighlightedCells(gameState, pixiState);
 };
 
 (async () => {
@@ -445,7 +451,7 @@ const executeMove = (
 
   const gameState = makeGameBoardState();
   const pixiState = initializePixiState(gameState);
-  updateHighlightedCells(gameState, pixiState);
+  updateUI(gameState, pixiState);
 
   app.stage.addChild(pixiState.board);
 
@@ -464,7 +470,7 @@ const executeMove = (
         piece.scale.x = 1;
         piece.scale.y = 1;
       }
-      updateHighlightedCells(gameState, pixiState);
+      updateUI(gameState, pixiState);
     });
   }
 
@@ -511,15 +517,11 @@ const executeMove = (
           gameState.bestSolution.length > gameState.moves.length
         ) {
           gameState.bestSolution = gameState.moves.slice();
-          document.getElementById("bestSolution")!.innerText =
-            "Best solution: " + gameState.bestSolution.length + " moves";
         }
         gameState.activeColor = null;
-        updateHighlightedCells(gameState, pixiState);
       }
 
-      document.getElementById("moves")!.innerText =
-        "Moves: " + gameState.moves.length;
+      updateUI(gameState, pixiState);
     }
   });
 
@@ -534,10 +536,8 @@ const executeMove = (
       gameState.moves.pop();
     }
     gameState.activeColor = null;
-    updateHighlightedCells(gameState, pixiState);
 
-    document.getElementById("moves")!.innerText =
-      "Moves: " + gameState.moves.length;
+    updateUI(gameState, pixiState);
   });
 
   document.getElementById("newRound")!.addEventListener("click", () => {
@@ -558,11 +558,8 @@ const executeMove = (
     gameState.bestSolution = [];
     gameState.activeColor = null;
     gameState.target = getLegalTarget(gameState.board);
-    updateHighlightedCells(gameState, pixiState);
 
-    document.getElementById("moves")!.innerText =
-      "Moves: " + gameState.moves.length;
-    document.getElementById("bestSolution")!.innerText = "Best solution: none";
+    updateUI(gameState, pixiState);
   });
 
   app.ticker.add(() => {
