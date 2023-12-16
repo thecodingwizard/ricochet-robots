@@ -827,6 +827,7 @@ const handleUserMovement = (
   });
 
   document.getElementById("newRound")!.addEventListener("click", () => {
+    if (!confirm("Are you sure you want to move on to a new round?")) return;
     while (gameState.moves.length > 0) {
       const move = gameState.moves[gameState.moves.length - 1];
       executeMove(gameState, pixiState, {

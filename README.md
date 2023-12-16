@@ -1,3 +1,3 @@
 ```
-npx parcel src/index.html
+npm start
 ```

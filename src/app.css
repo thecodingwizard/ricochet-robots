@@ -1,4 +1,11 @@
-html, body {
-  padding: 0;
-  margin: 0;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+  #game {
+    width: calc(100% - 64px);
+    min-width: 768px;
+    margin: 0 auto;
+  }
 }
