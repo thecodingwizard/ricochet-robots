@@ -3,7 +3,7 @@ import * as PIXI from "pixi.js";
 const GAME_SIZE = 768;
 const N_CELLS = 16; // 16 x 16 cells
 const CELL_SIZE = GAME_SIZE / N_CELLS;
-const PIECE_SIZE = CELL_SIZE - 16;
+const PIECE_SIZE = CELL_SIZE - 12;
 
 const UP = 0;
 const RIGHT = 1;
@@ -389,8 +389,8 @@ const updateUI = (gameState: GameState, pixiState: PixiState) => {
   for (let color of COLORS) {
     if (color === gameState.activeColor) continue;
     let piece = pixiState.pieces[color];
-    piece.sprite.scale.x = 1;
-    piece.sprite.scale.y = 1;
+    piece.sprite.width = PIECE_SIZE;
+    piece.sprite.height = PIECE_SIZE;
   }
 
   if (activePiece) {
@@ -420,7 +420,7 @@ const updateUI = (gameState: GameState, pixiState: PixiState) => {
 
   document.getElementById("moves")!.innerText =
     "Moves: " + gameState.moves.length;
-  if (gameState.bestSolution)
+  if (gameState.bestSolution !== null)
     document.getElementById("bestSolution")!.innerText =
       "Best solution: " + gameState.bestSolution.length + " moves";
   else
@@ -490,6 +490,24 @@ const clearPendingAnimations = (pixiState: PixiState) => {
     trim,
     6
   );
+  const robotRedTexture = await PIXI.Assets.load(
+    new URL("robot_red.png", import.meta.url).toString()
+  );
+  const robotGreenTexture = await PIXI.Assets.load(
+    new URL("robot_green.png", import.meta.url).toString()
+  );
+  const robotBlueTexture = await PIXI.Assets.load(
+    new URL("robot_blue.png", import.meta.url).toString()
+  );
+  const robotYellowTexture = await PIXI.Assets.load(
+    new URL("robot_yellow.png", import.meta.url).toString()
+  );
+  const robotTextures = {
+    RED: robotRedTexture,
+    GREEN: robotGreenTexture,
+    BLUE: robotBlueTexture,
+    YELLOW: robotYellowTexture,
+  };
 
   document.body.appendChild(app.view);
 
@@ -598,17 +616,19 @@ const clearPendingAnimations = (pixiState: PixiState) => {
     // draw pieces
     const pixiPieces = {};
     for (let piece of Object.values(gameBoard.pieces)) {
-      let pieceSprite = new PIXI.Graphics();
-
-      pieceSprite.beginFill(COLOR_HEX[piece.color]);
-      pieceSprite.drawCircle(0, 0, PIECE_SIZE / 2);
-      // add a border
-      pieceSprite.lineStyle(3, 0x000000);
-      pieceSprite.drawCircle(0, 0, PIECE_SIZE / 2 + 1);
-      pieceSprite.endFill();
-
+      // let pieceSprite = new PIXI.Graphics();
+      // pieceSprite.beginFill(COLOR_HEX[piece.color]);
+      // pieceSprite.drawCircle(0, 0, PIECE_SIZE / 2);
+      // // add a border
+      // pieceSprite.lineStyle(3, 0x000000);
+      // pieceSprite.drawCircle(0, 0, PIECE_SIZE / 2 + 1);
+      // pieceSprite.endFill();
+      let pieceSprite = new PIXI.Sprite(robotTextures[piece.color]);
       pieceSprite.x = (piece.location[1] + 1) * CELL_SIZE - CELL_SIZE / 2;
       pieceSprite.y = (piece.location[0] + 1) * CELL_SIZE - CELL_SIZE / 2;
+      pieceSprite.height = PIECE_SIZE;
+      pieceSprite.width = PIECE_SIZE;
+      pieceSprite.anchor.set(0.5);
 
       let pieceState: PixiPieceState = {
         sprite: pieceSprite,
@@ -748,7 +768,7 @@ const clearPendingAnimations = (pixiState: PixiState) => {
         executeMove(gameState, pixiState, move);
       }
     }
-    gameState.bestSolution = [];
+    gameState.bestSolution = null;
     gameState.activeColor = null;
     gameState.target = getLegalTarget(gameState.board);
 
@@ -759,8 +779,9 @@ const clearPendingAnimations = (pixiState: PixiState) => {
   app.ticker.add(() => {
     if (gameState.activeColor !== null) {
       let piece = pixiState.pieces[gameState.activeColor];
-      piece.sprite.scale.x = 1 + 0.075 * Math.sin(app.ticker.lastTime / 200);
-      piece.sprite.scale.y = 1 + 0.075 * Math.sin(app.ticker.lastTime / 200);
+      let scale = 1 + 0.075 * Math.sin(app.ticker.lastTime / 150);
+      piece.sprite.width = scale * PIECE_SIZE;
+      piece.sprite.height = scale * PIECE_SIZE;
     }
     for (let piece of Object.values(pixiState.pieces)) {
       if (piece.locations.length > 1) {
