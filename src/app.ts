@@ -616,54 +616,6 @@ const handleUndoMove = (gameState: GameState, pixiState: PixiState) => {
       for (let col = 0; col < N_CELLS; col++) {
         for (let dir = 0; dir < 4; dir++) {
           if (gameBoard.board[row][col].borders[dir]) {
-            // const border = new PIXI.Graphics();
-            // const borderThickness = 2;
-            // border.beginFill(0x000000);
-            // switch (dir) {
-            //   case UP:
-            //     border.drawRect(
-            //       0,
-            //       0,
-            //       CELL_SIZE + borderThickness,
-            //       borderThickness
-            //     );
-            //     border.x = col * CELL_SIZE;
-            //     border.y = row * CELL_SIZE;
-            //     break;
-            //   case DOWN:
-            //     border.drawRect(
-            //       0,
-            //       0,
-            //       CELL_SIZE + borderThickness,
-            //       borderThickness
-            //     );
-            //     border.x = col * CELL_SIZE;
-            //     border.y = (row + 1) * CELL_SIZE - borderThickness;
-            //     break;
-            //   case LEFT:
-            //     border.drawRect(
-            //       0,
-            //       0,
-            //       borderThickness,
-            //       CELL_SIZE + borderThickness
-            //     );
-            //     border.x = col * CELL_SIZE;
-            //     border.y = row * CELL_SIZE;
-            //     break;
-            //   case RIGHT:
-            //     border.drawRect(
-            //       0,
-            //       0,
-            //       borderThickness,
-            //       CELL_SIZE + borderThickness
-            //     );
-            //     border.x = (col + 1) * CELL_SIZE - borderThickness;
-            //     border.y = row * CELL_SIZE;
-            //     break;
-            // }
-            // border.endFill();
-            // container.addChild(border);
-
             if (dir === UP) {
               const singleBorder = new PIXI.Sprite(horizontalBorderTexture);
               singleBorder.x = col * CELL_SIZE;
@@ -689,13 +641,6 @@ const handleUndoMove = (gameState: GameState, pixiState: PixiState) => {
     // draw pieces
     const pixiPieces = {};
     for (let piece of Object.values(gameBoard.pieces)) {
-      // let pieceSprite = new PIXI.Graphics();
-      // pieceSprite.beginFill(COLOR_HEX[piece.color]);
-      // pieceSprite.drawCircle(0, 0, PIECE_SIZE / 2);
-      // // add a border
-      // pieceSprite.lineStyle(3, 0x000000);
-      // pieceSprite.drawCircle(0, 0, PIECE_SIZE / 2 + 1);
-      // pieceSprite.endFill();
       let pieceSprite = new PIXI.Sprite(robotTextures[piece.color]);
       pieceSprite.x = (piece.location[1] + 1) * CELL_SIZE - CELL_SIZE / 2;
       pieceSprite.y = (piece.location[0] + 1) * CELL_SIZE - CELL_SIZE / 2;
