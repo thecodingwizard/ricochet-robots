@@ -425,6 +425,13 @@ const updateUI = (gameState: GameState, pixiState: PixiState) => {
       "Best solution: " + gameState.bestSolution.length + " moves";
   else
     document.getElementById("bestSolution")!.innerText = "Best solution: none";
+
+  history.replaceState(
+    undefined,
+    // @ts-ignore
+    undefined,
+    "#" + btoa(JSON.stringify(gameState))
+  );
 };
 
 const executeMove = (
@@ -684,7 +691,20 @@ const handleUndoMove = (gameState: GameState, pixiState: PixiState) => {
     };
   };
 
-  const gameState = makeGameBoardState();
+  let gameState: GameState | undefined = undefined;
+  if (window.location.hash) {
+    const hash = window.location.hash.substr(1);
+    try {
+      gameState = JSON.parse(atob(hash));
+    } catch (e) {
+      console.error(e);
+      alert("Failed to parse board from URL. Using random board instead.");
+    }
+  }
+  if (!gameState) {
+    gameState = makeGameBoardState();
+  }
+
   const pixiState = initializePixiState(gameState);
   updateUI(gameState, pixiState);
 
