@@ -52,7 +52,7 @@ type GameState = {
 };
 
 type PixiPieceState = {
-  sprite: PIXI.Graphics;
+  sprite: PIXI.Sprite;
   locations: Array<{
     location: [number, number];
     animationStartTime: number;
@@ -457,6 +457,50 @@ const clearPendingAnimations = (pixiState: PixiState) => {
   }
 };
 
+// called when the user attempts to make a movement, either by pressing
+// an arrow key or swiping on mobile.
+const handleUserMovement = (
+  gameState: GameState,
+  pixiState: PixiState,
+  dir: number
+) => {
+  if (gameState.activeColor !== null) {
+    let piece = gameState.pieces[gameState.activeColor];
+
+    let [row, col] = piece.location;
+    const travelDist = getMaxTravelDistance(gameState, [row, col], dir);
+    if (travelDist === 0) return;
+    let [newRow, newCol] = [
+      row + dr[dir] * travelDist,
+      col + dc[dir] * travelDist,
+    ];
+
+    const moveAction: MoveAction = {
+      color: gameState.activeColor,
+      from: [row, col],
+      to: [newRow, newCol],
+    };
+    executeMove(gameState, pixiState, moveAction);
+    gameState.moves.push(moveAction);
+
+    if (
+      gameState.target.location[0] === newRow &&
+      gameState.target.location[1] === newCol &&
+      gameState.target.color === gameState.activeColor
+    ) {
+      if (
+        gameState.bestSolution === null ||
+        gameState.bestSolution.length > gameState.moves.length
+      ) {
+        gameState.bestSolution = gameState.moves.slice();
+      }
+      gameState.activeColor = null;
+    }
+
+    updateUI(gameState, pixiState);
+  }
+};
+
 (async () => {
   const app = new PIXI.Application({
     background: "#1099bb",
@@ -466,16 +510,20 @@ const clearPendingAnimations = (pixiState: PixiState) => {
     autoDensity: true,
   });
 
-  window.addEventListener("resize", () => {
+  const resizeGame = () => {
     let width = window.innerWidth;
     if (width < GAME_SIZE) {
-      app.renderer.view.style.width = width + "px";
-      app.renderer.view.style.height = width + "px";
-    } else if (parseInt(app.renderer.view.style.width, 10) < GAME_SIZE) {
-      app.renderer.view.style.width = GAME_SIZE + "px";
-      app.renderer.view.style.height = GAME_SIZE + "px";
+      app.renderer.view.style!.width = width + "px";
+      app.renderer.view.style!.height = width + "px";
+    } else if (parseInt(app.renderer.view.style!.width!, 10) < GAME_SIZE) {
+      app.renderer.view.style!.width = GAME_SIZE + "px";
+      app.renderer.view.style!.height = GAME_SIZE + "px";
     }
+  };
+  window.addEventListener("resize", () => {
+    resizeGame();
   });
+  resizeGame();
 
   // this is 2x2 cell
   const boardTexture = await PIXI.Assets.load(
@@ -520,7 +568,7 @@ const clearPendingAnimations = (pixiState: PixiState) => {
     YELLOW: robotYellowTexture,
   };
 
-  document.getElementById("game")!.appendChild(app.view);
+  document.getElementById("game")!.appendChild(app.view as any);
 
   const initializePixiState = (gameBoard: GameState): PixiState => {
     const container = new PIXI.Container();
@@ -711,42 +759,56 @@ const clearPendingAnimations = (pixiState: PixiState) => {
     const dir = keyMap[e.key];
     if (dir === undefined) return;
 
-    if (gameState.activeColor !== null) {
-      let piece = gameState.pieces[gameState.activeColor];
-
-      let [row, col] = piece.location;
-      const travelDist = getMaxTravelDistance(gameState, [row, col], dir);
-      if (travelDist === 0) return;
-      let [newRow, newCol] = [
-        row + dr[dir] * travelDist,
-        col + dc[dir] * travelDist,
-      ];
-
-      const moveAction: MoveAction = {
-        color: gameState.activeColor,
-        from: [row, col],
-        to: [newRow, newCol],
-      };
-      executeMove(gameState, pixiState, moveAction);
-      gameState.moves.push(moveAction);
-
-      if (
-        gameState.target.location[0] === newRow &&
-        gameState.target.location[1] === newCol &&
-        gameState.target.color === gameState.activeColor
-      ) {
-        if (
-          gameState.bestSolution === null ||
-          gameState.bestSolution.length > gameState.moves.length
-        ) {
-          gameState.bestSolution = gameState.moves.slice();
-        }
-        gameState.activeColor = null;
-      }
-
-      updateUI(gameState, pixiState);
-    }
+    handleUserMovement(gameState, pixiState, dir);
   });
+
+  // add swipe handler for mobile
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchEndX = 0;
+  let touchEndY = 0;
+  app.view.addEventListener!(
+    "touchstart",
+    function (e: any) {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    },
+    false
+  );
+  app.view.addEventListener!(
+    "touchend",
+    function (e: any) {
+      touchEndX = e.changedTouches[0].screenX;
+      touchEndY = e.changedTouches[0].screenY;
+      handleSwipe();
+    },
+    false
+  );
+  function handleSwipe() {
+    const dx = touchEndX - touchStartX;
+    const dy = touchEndY - touchStartY;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    if (Math.max(absDx, absDy) > 20) {
+      // threshold for swipe detection
+      if (absDx > absDy) {
+        // Horizontal swipe
+        if (dx > 0) {
+          handleUserMovement(gameState, pixiState, RIGHT);
+        } else {
+          handleUserMovement(gameState, pixiState, LEFT);
+        }
+      } else {
+        // Vertical swipe
+        if (dy > 0) {
+          handleUserMovement(gameState, pixiState, DOWN);
+        } else {
+          handleUserMovement(gameState, pixiState, UP);
+        }
+      }
+    }
+  }
 
   document.getElementById("resetRound")!.addEventListener("click", () => {
     while (gameState.moves.length > 0) {
