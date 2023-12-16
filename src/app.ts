@@ -466,6 +466,17 @@ const clearPendingAnimations = (pixiState: PixiState) => {
     autoDensity: true,
   });
 
+  window.addEventListener("resize", () => {
+    let width = window.innerWidth;
+    if (width < GAME_SIZE) {
+      app.renderer.view.style.width = width + "px";
+      app.renderer.view.style.height = width + "px";
+    } else if (parseInt(app.renderer.view.style.width, 10) < GAME_SIZE) {
+      app.renderer.view.style.width = GAME_SIZE + "px";
+      app.renderer.view.style.height = GAME_SIZE + "px";
+    }
+  });
+
   // this is 2x2 cell
   const boardTexture = await PIXI.Assets.load(
     new URL("board.jpg", import.meta.url).toString()
@@ -509,7 +520,7 @@ const clearPendingAnimations = (pixiState: PixiState) => {
     YELLOW: robotYellowTexture,
   };
 
-  document.body.appendChild(app.view);
+  document.getElementById("game")!.appendChild(app.view);
 
   const initializePixiState = (gameBoard: GameState): PixiState => {
     const container = new PIXI.Container();
