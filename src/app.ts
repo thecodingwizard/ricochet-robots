@@ -691,19 +691,18 @@ const handleUndoMove = (gameState: GameState, pixiState: PixiState) => {
     };
   };
 
-  let gameState: GameState | undefined = undefined;
-  if (window.location.hash) {
-    const hash = window.location.hash.substr(1);
-    try {
-      gameState = JSON.parse(atob(hash));
-    } catch (e) {
-      console.error(e);
-      alert("Failed to parse board from URL. Using random board instead.");
+  let gameState: GameState = (() => {
+    if (window.location.hash) {
+      const hash = window.location.hash.substr(1);
+      try {
+        return JSON.parse(atob(hash));
+      } catch (e) {
+        console.error(e);
+        alert("Failed to parse board from URL. Using random board instead.");
+      }
     }
-  }
-  if (!gameState) {
-    gameState = makeGameBoardState();
-  }
+    return makeGameBoardState();
+  })();
 
   const pixiState = initializePixiState(gameState);
   updateUI(gameState, pixiState);
