@@ -544,7 +544,7 @@ const handleUndoMove = (gameState: GameState, pixiState: PixiState) => {
     new URL("board.jpg", import.meta.url).toString()
   );
   const verticalBorderTexture = await PIXI.Assets.load(
-    new URL("single_border.png", import.meta.url).toString()
+    new URL("single_border_masked.png", import.meta.url).toString()
   );
   // width of vertical border
   const SINGLE_BORDER_WIDTH =
@@ -611,6 +611,23 @@ const handleUndoMove = (gameState: GameState, pixiState: PixiState) => {
     // centerPiece.y = CELL_SIZE * 7 - 1;
     // container.addChild(centerPiece);
 
+    // add placeholders for board cells
+    const boardCells: Array<Array<PIXI.Graphics>> = [];
+    for (let row = 0; row < N_CELLS; row++) {
+      boardCells.push([]);
+      for (let col = 0; col < N_CELLS; col++) {
+        const boardCell = new PIXI.Graphics();
+        boardCell.beginFill(0xffffff);
+        boardCell.drawRect(0, 0, CELL_SIZE, CELL_SIZE);
+        boardCell.endFill();
+        boardCell.x = col * CELL_SIZE;
+        boardCell.y = row * CELL_SIZE;
+        boardCell.alpha = 0;
+        boardCells[row].push(boardCell);
+        container.addChild(boardCell);
+      }
+    }
+
     // draw borders
     for (let row = 0; row < N_CELLS; row++) {
       for (let col = 0; col < N_CELLS; col++) {
@@ -658,23 +675,6 @@ const handleUndoMove = (gameState: GameState, pixiState: PixiState) => {
         ],
       };
       pixiPieces[piece.color] = pieceState;
-    }
-
-    // add placeholders for board cells
-    const boardCells: Array<Array<PIXI.Graphics>> = [];
-    for (let row = 0; row < N_CELLS; row++) {
-      boardCells.push([]);
-      for (let col = 0; col < N_CELLS; col++) {
-        const boardCell = new PIXI.Graphics();
-        boardCell.beginFill(0xffffff);
-        boardCell.drawRect(0, 0, CELL_SIZE, CELL_SIZE);
-        boardCell.endFill();
-        boardCell.x = col * CELL_SIZE;
-        boardCell.y = row * CELL_SIZE;
-        boardCell.alpha = 0;
-        boardCells[row].push(boardCell);
-        container.addChild(boardCell);
-      }
     }
 
     return {
