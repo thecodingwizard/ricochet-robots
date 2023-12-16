@@ -501,6 +501,20 @@ const handleUserMovement = (
   }
 };
 
+const handleUndoMove = (gameState: GameState, pixiState: PixiState) => {
+  if (gameState.moves.length > 0) {
+    const move = gameState.moves[gameState.moves.length - 1];
+    executeMove(gameState, pixiState, {
+      color: move.color,
+      from: move.to,
+      to: move.from,
+    });
+    gameState.moves.pop();
+    gameState.activeColor = move.color;
+    updateUI(gameState, pixiState);
+  }
+};
+
 (async () => {
   const app = new PIXI.Application({
     background: "#1099bb",
@@ -848,6 +862,15 @@ const handleUserMovement = (
 
     clearPendingAnimations(pixiState);
     updateUI(gameState, pixiState);
+  });
+
+  document.getElementById("undo")!.addEventListener("click", () => {
+    handleUndoMove(gameState, pixiState);
+  });
+  document.addEventListener("keydown", function (event) {
+    if ((event.ctrlKey || event.metaKey) && event.key === "z") {
+      handleUndoMove(gameState, pixiState);
+    }
   });
 
   app.ticker.add(() => {

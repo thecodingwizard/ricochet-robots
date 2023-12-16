@@ -10,20 +10,34 @@
     <div class="h-screen lg:flex lg:items-center lg:justify-center">
       <div class="lg:flex lg:h-screen lg:max-h-[768px]">
         <div class="p-4 md:p-8 lg:p-0 lg:w-64 lg:pr-4 xl:pr-8">
-          <h1 class="text-lg md:text-2xl font-bold mt-2 lg:mt-4">Ricochet Robots!</h1>
+          <h1 class="text-lg md:text-2xl font-bold mt-2 lg:mt-4">
+            Ricochet Robots!
+          </h1>
           <hr class="my-3 md:my-6" />
           <div id="moves" class="md:text-lg font-semibold">Moves: 0</div>
-          <div id="bestSolution" class="md:text-lg md:mt-2">Best solution: none</div>
+          <div id="bestSolution" class="md:text-lg md:mt-2">
+            Best solution: none
+          </div>
           <hr class="my-3 md:my-6" />
 
-          <div class="space-x-2">
+          <div>
             <button
               type="button"
-              class="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+              class="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 mr-2"
               id="resetRound"
             >
               Reset Round
             </button>
+
+            <button
+              type="button"
+              class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 mr-2 lg:mr-0"
+              id="undo"
+            >
+              Undo Move
+            </button>
+
+            <div class="hidden lg:block h-3"></div>
 
             <button
               type="button"
